@@ -1,5 +1,4 @@
 rootkey.json
 gulpfile.js
 ./test/*
-./pages/*
 ./node_modules/*
