@@ -135,18 +135,20 @@ server.post("/dwey/close", async (req, reply) => {
   let packetNumbers = {};
   let closeTime = new Date().getTime();
   let account = await User.findById(req.headers.user);
-  console.log(req.headers);
   let offer = openOffers[req.headers.contract];
   if (auth(account.token) == req.headers.token && offer) {
     for (var i = 0; i < data.length; i++) {
       let packet = data[i];
       let rxer = await User.findById(packet.user);
-      let time = deauth(packet.token,rxer.token);
-      if (time >= offer.time && time <= closeTime) {
-        if (typeof packetNumbers[packet.user] == "undefined") {
-          packetNumbers[packet.user] = 0;
+      console.log(packet,rxer);
+      if (rxer != null) {
+        let time = deauth(packet.token,rxer.token);
+        if (time >= offer.time && time <= closeTime) {
+          if (typeof packetNumbers[packet.user] == "undefined") {
+            packetNumbers[packet.user] = 0;
+          }
+          packetNumbers[packet.user] += 1;
         }
-        packetNumbers[packet.user] += 1;
       }
     }
     account.balance += offer.offer;

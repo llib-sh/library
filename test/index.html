@@ -7,6 +7,7 @@
   <body>
     <img width="500px" src="" alt="">
     <input type="file" id="file">
+    <!-- <script src="../../dist/library.min.js" charset="utf-8"></script> -->
     <script src="./js/socket.io.min.js" charset="utf-8"></script>
     <script src="./js/simplepeer.min.js"></script>
     <script src="./js/cipherhash.js" charset="utf-8"></script>
@@ -17,11 +18,10 @@
       let userId = "619d45b20525f6c154abccc7";
       let offer = "0.02";
       let token = "oogyyguy";
-      let host = "http://127.0.0.1:3000/dwey";
+      // let host = "http://127.0.0.1:3000/dwey";
 
-      const lib = new Library(userId, offer, token, host);
+      const lib = new Library(userId, offer, token);
       lib.get("7d6788adf544dadef98f501d82e6f129c3228c299a55d235cb9cea6b6584cb00").then(res => res.text()).then((b64) => {
-        // console.log(b64);
         document.querySelector("img").src = b64;
       });
 
@@ -31,16 +31,13 @@
         for (var i = 0; i < fileList.length; i++) {
           let file = fileList[i];
           const reader = new FileReader();
-          reader.onload = async (data) => {
-            console.log(data);
+          reader.onload = (data) => {
             window.file = data.target.result
-            window.d = await (new Blob([data.target.result]).text());
-            console.log(d);
-            // lib.post(d).then((fileName) => {
-            //   console.log(fileName);
-            // });
+            lib.post(data.target.result).then((fileName) => {
+              console.log(fileName);
+            });
           };
-          reader.readAsArrayBuffer(file);
+          reader.readAsDataURL(file);
         }
       }
     </script>

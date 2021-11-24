@@ -29,3 +29,10 @@ librarian
 
 make a file index list when there is a file you dont have download it and if space is full
 then replace the file that hasn't been used the longest
+
+Future:
+
+Edge CDN for small files
+
+Distributed VM
+https://nodejs.org/api/vm.html

@@ -76,10 +76,10 @@ function Library(user, offer, token, host="http://llib.sh/dwey") {
               };
             }
             let base64 = btoa(fileData);
-            console.log(base64);
+            // console.log(base64);
             // console.log(fileData);
             let mime = detectMimeType(base64);
-            console.log(mime);
+            // console.log(mime);
             resolve(fetch(`data:${mime};base64,${base64}`).catch(reject));
             fetch(`${host}/close`, {
               method: 'POST',
