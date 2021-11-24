@@ -9,7 +9,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "homepage": "https://github.com/llib-sh/library",
+  "homepage": "http://library.llib.sh",
   "author": "lakefox",
   "license": "MIT",
   "dependencies": {
@@ -30,5 +30,9 @@
     "table": "^6.7.3",
     "wrtc": "^0.4.7",
     "yargs": "^17.2.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/llib-sh/library.git"
   }
 }
