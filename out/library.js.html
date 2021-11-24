@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: library.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: library.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * description
+ *
+ * @class
+ * @param  {String} user                    clients user id that will be paying
+ * @param  {String} offer                      clients maximum offer to the miner
+ * @param  {String} token                      clients unqiue token given at sign up
+ * @param  {String} host="http://llib.sh/dwey" (optional) third party DWEY server
+ * @return {void}                            void
+ */
+function Library(user, offer, token, host="http://llib.sh/dwey") {
+/**
+ * description
+ * @param  {String} fileName                    name of file requested
+ * @return {Promise} (Response Object)         https://developer.mozilla.org/en-US/docs/Web/API/Response
+ */
+  this.get = (fileName) => {
+    return new Promise(function(resolve, reject) {
+      const socket = io(`${new URL(host).hostname}${new URL(host).port!=""?":"+new URL(host).port:""}/`);
+      const p = new SimplePeer({
+        initiator: true
+      });
+      // Send connection data to sever when you get it
+      let sent = false;
+      p.on('signal', async (data) => {
+        if (sent) {
+          return null;
+        }
+        sent = true;
+        let contractId = pepsin();
+
+        // miner connects to the contract socket room and sends the signal data
+        socket.on("C"+contractId, (data) => {
+          p.signal(data);
+        });
+
+        await fetch(`${host}/${user}/${auth(token)}/${fileName}/${offer}`,{
+          method: 'GET',
+          headers: {
+            "peer": JSON.stringify(data),
+            "contract": contractId
+          }
+        });
+
+        let packets = [];
+        let currentPacket = 0;
+
+        p.on('connect', () => {
+          p.send(`PACKET ${currentPacket}`);
+          currentPacket++;
+        });
+
+        p.on('data', function(msg) {
+          let msgSplit = msg.toString().split(" ");
+          // DATA packetid numofpacket amountofpackets token user data...
+          if (msgSplit[0] == "DATA") {
+            if (typeof packets[parseInt(msgSplit[1])] == "undefined") {
+              packets[parseInt(msgSplit[1])] = [];
+            }
+            packets[parseInt(msgSplit[1])][parseInt(msgSplit[2])] = {
+              token: msgSplit[4],
+              user: msgSplit[5],
+              data: msgSplit.slice(6).join(" ")
+            }
+          }
+          if ((parseInt(msgSplit[1]) >= 255 &amp;&amp; [...new Set(packets[parseInt(msgSplit[1])])].length-1 >= parseInt(msgSplit[3])) || msgSplit[1] == "END") {
+            p.destroy();
+            let fileData = ``;
+            for (var i = 0; i &lt; packets.length; i++) {
+              let dp = "";
+              packets[i].forEach((item, i) => {
+                dp += item.data
+              });
+              fileData += dp;
+              packets[i] = packets[i][0];
+              packets[i].data = dp.length;
+            }
+            fetch(`${host}/close`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'contract': contractId,
+                'token': auth(token),
+                'user': user
+              },
+              body: JSON.stringify(packets)
+            });
+            let base64 = btoa(fileData);
+            let mime = detectMimeType(base64);
+            resolve(fetch(`data:${mime};base64,${base64}`));
+          } else {
+            if ([...new Set(packets[parseInt(msgSplit[1])])].length-1 >= parseInt(msgSplit[3])) {
+              p.send(`PACKET ${currentPacket}`);
+              currentPacket++;
+            }
+          }
+        });
+      });
+    });
+  }
+/**
+ * description
+ * @param  {String} data                    this data needs to be a {String} to work properly
+ * @return {Object} {sucess: true, hash: "SHA256 hash of the file data"}
+ */
+  this.post = (data) => {
+    let comp = String.fromCharCode(...[...pako.deflate(data)]);
+    return new Promise(function(resolve, reject) {
+      fetch(`${host}/upload`, {
+        method: 'POST',
+        headers: {
+          'token': auth(token),
+          'user': user
+        },
+        body: comp
+      }).then(res=>res.json()).then(resolve).catch(reject);
+    });
+  }
+  function auth(token) {
+    let time = parseInt(new Date().getTime()/30000);
+    return cipherHash(time.toString(),token);
+  }
+  function pepsin() {
+    return (new Date().getTime().toString(16));
+  };
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Library.html">Library</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.7</a> on Thu Nov 11 2021 15:18:51 GMT-0600 (Central Standard Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

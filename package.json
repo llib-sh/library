@@ -1,0 +1,31 @@
+{
+  "name": "libpkg",
+  "version": "1.0.4",
+  "description": "",
+  "main": "librarian.js",
+  "bin": {
+    "librarian": "./librarian.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "homepage": "https://github.com/llib-sh/library",
+  "author": "lakefox",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.1028.0",
+    "cipherhash": "^1.0.4",
+    "fastify": "^3.22.1",
+    "fastify-cors": "^6.0.2",
+    "fastify-socket.io": "^2.0.1",
+    "mongodb": "^4.1.4",
+    "mongoose": "^6.0.12",
+    "node-fetch": "^3.0.0",
+    "pepsin": "^1.0.1",
+    "simple-peer": "^9.11.0",
+    "socket.io-client": "^4.3.2",
+    "table": "^6.7.3",
+    "wrtc": "^0.4.7",
+    "yargs": "^17.2.1"
+  }
+}
