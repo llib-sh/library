@@ -135,7 +135,7 @@ server.post("/dwey/close", async (req, reply) => {
   let packetNumbers = {};
   let closeTime = new Date().getTime();
   let account = await User.findById(req.headers.user);
-  console.log(account);
+  console.log(req.headers);
   let offer = openOffers[req.headers.contract];
   if (auth(account.token) == req.headers.token && offer) {
     for (var i = 0; i < data.length; i++) {

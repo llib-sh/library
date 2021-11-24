@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+  </head>
+  <body>
+    <script type="text/javascript">
+      fetch(`http://llib.sh/dwey/account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'action': "create"
+        },
+        body: JSON.stringify({
+          username: "coby",
+          email: "coby@lakefox.net",
+          password: "password",
+          balance: 100,
+          token: "sdajklhjlkhdsajkhsadhjkhjlkdsahjlksadjlhkjldhksa",
+          files: {}
+        })
+      }).then(res => res.json()).then((e) => {
+        console.log(e);
+      }).catch((e) => {
+        console.log(e);
+      });
+    </script>
+  </body>
+</html>

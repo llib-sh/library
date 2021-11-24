@@ -98,6 +98,9 @@ socket.on("REQ", async (msg) => {
   }
   if (offer >= minOffer) {
     const peer = new Peer({wrtc: wrtc});
+    peer.on("error", (err) => {
+      log(err);
+    })
     let myId = pepsin();
     log(myId);
     let sdpSize = 0;

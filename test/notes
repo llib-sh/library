@@ -1,0 +1,31 @@
+seeker sends an address + offer (price per gb) to room name with file id
+miners send time and accept + cost or counter + address
+seeker picks fastest or lowest cost one
+seeker pays and sends the transaction to the lakefox node to submit it
+seeker sends tx to a trusted node to submit it to the network the node send nodeid + payers peer id + tx number
+once the lakefox node sees that the tx is good it goes to the miners room (which is there address) and tells them
+miner sends data
+
+files when uploaded are split into 256 files (max chrome connections at a time)
+
+dwey (forwarding node)
+  a forwarding node acts as a megaphone for the requesting user
+  the process is the client goes to a url like llib.sh/dwey/hostprefix/usergeneratedid/fileid/offer
+  then dwey immeditly posts a message in a socket room telling everyone connected
+  msg example
+  hostprefixusergeneratedid fileid offer
+  8FS89sad89dsagD7fas689bd 8sa9d87789dsa 1000
+  *offer is in cents 0.01 (cent) == 1000
+
+  also a negotiator that can pay on behalf of the requester that listens in on the file room and pays
+
+library
+  where you go to get files
+
+librarian
+  basically the curator of the files or the miner
+  sends their id and auth token and it has to be within the time the request was sent
+
+
+make a file index list when there is a file you dont have download it and if space is full
+then replace the file that hasn't been used the longest
