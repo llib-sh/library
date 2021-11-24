@@ -22,7 +22,7 @@ npm install libpkg -g
 #### Library.js
 
 ``` html
-<script src="https://unpkg.com/libpkg/library.js"></script>
+<script src="https://unpkg.com/libpkg/dist/library.min.js"></script>
 ```
 
 ## Usage
