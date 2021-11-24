@@ -1,4 +1,5 @@
-rootkey.json
-gulpfile.js
+./rootkey.json
+./gulpfile.js
+./dwey.js
 ./test/*
 ./node_modules/*
