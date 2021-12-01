@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../llib"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../qvm"
+		}
+	],
+	"settings": {}
+}
