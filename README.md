@@ -11,11 +11,11 @@ Library speeds up the downloading process by taking the load one server would no
 
 ## Install
 
-#### Local Install
+#### Install
 ```
-npm install libpkg
+curl -sL https://raw.githubusercontent.com/llib-sh/library/master/install.sh | sh
 ```
-#### CLI Install
+If you already have [NodeJS](http://nodejs.org/download/) installed:
 ```
 npm install libpkg -g
 ```
