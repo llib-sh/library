@@ -7,7 +7,10 @@ const Peer = require('simple-peer');
 const wrtc = require('wrtc');
 const yargs = require('yargs');
 const pepsin = require('pepsin');
+const smartload = require('smartload');
+const { Readable } = require('stream');
 const {table,getBorderCharacters} = require('table');
+const { runMain } = require('module');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const options = yargs
@@ -124,35 +127,53 @@ socket.on("REQ", async (msg) => {
       log(path.join(filePath,"./"+fileId+".lib"));
       fs.readFile(path.join(filePath,"./"+fileId+".lib"), (err, fileBuffer) => {
         if (!err) {
-          let fbSplit = fileBuffer.toString("binary").split("");
-          let file = [];
-          if (fbSplit.length/256 >= sdpSize) {
-            file = chunk(fbSplit,fbSplit.length/256);
-          } else {
-            file = chunk(fbSplit,sdpSize);
-          }
-          peer.on('data', async (packetid) => {
-            log(packetid.toString());
-            let packetSplit = packetid.toString().split(" ");
-            if (packetSplit[0] == "PACKET") {
-              if (parseInt(packetSplit[1]) <= file.length-1) {
-                let packet = file[parseInt(packetSplit[1])];
-                let chunks = [packet]
-                if (packet.length > sdpSize) {
-                  chunks = chunk(packet, sdpSize);
-                }
-                chunks.forEach((item, i) => {
-                  stats[3][1] += 1;
-                  log(`Sending Packet: ${packetSplit[1]} Chunk: ${chunks.length-1} Size: ${item.length}`);
-                  peer.send(`DATA ${packetSplit[1]} ${i} ${chunks.length-1} ${auth(token)} ${user} ${item.join("")}`);
-                });
-              } else {
-                stats[4][1] -= 1;
-                log("Killing");
-                peer.send(`DATA END ${packetSplit[1]}`);
-              }
-            }
+          let packetData = "";
+          loader().then(() => {
+            // peer.destroy();
           });
+          peer.on('data', async (packetid) => {
+            packetData = packetid;
+          });
+
+          function loader() {
+            let currentPacket = 0;
+            return new Promise((resolve, reject) => {
+              let check = setInterval(()=>{
+                if (packetData != "") {
+                  log("Start");
+                  run();
+                  clearInterval(check);
+                }
+              },10);
+              function run() {
+                let packetid = packetData;
+                log(packetid.toString());
+                let packetSplit = packetid.toString().split(" ");
+                if (packetSplit[0] == "PACKET") {
+                  let plans = smartload(parseInt(packetSplit[1]), parseInt(packetSplit[2]), fileBuffer.length);
+                  for (let i = 0; i < plans.length; i++) {
+                    const plan = plans[i];
+                    log(plan);
+                    let packet = fileBuffer.slice(plan.start, plan.stop);
+                    log(`Sending Packet: ${packetSplit[1]} Size: ${packet.length}`);
+                    // let stream = Readable.from(packet.toString());
+                    // Header DATA index token user
+                    peer.write(`DATA ${packetSplit[1]} ${auth(token)} ${user}`);
+                    let chunks = chunk(fileBuffer, sdpSize);
+                    chunks.forEach((buff) => {
+                      currentPacket++;
+                      peer.write(buff);
+                      if (packetData != packetid) {
+                        run();
+                      }
+                    });
+                    peer.write(`DATA END ${packetSplit[1]}`);
+                  }
+                  resolve();
+                }
+              }
+            });
+          }
         }
       });
 
