@@ -111,8 +111,7 @@ socket.on("REQ", async (msg) => {
       log("RX");
       log(data);
       sdpSize = parseInt(data.sdp.trim().split("\n").pop().split(":")[1])-300;
-      stats[3][0] = `Total Packets [${parseInt(sdpSize/1000)}kb]`
-      log(sdpSize);
+      stats[3][0] = `Total Packets [${parseInt(sdpSize/1000)}kb]`;
       let sent = false;
       peer.on("signal", (mySig) => {
         if (sent) {
@@ -124,62 +123,34 @@ socket.on("REQ", async (msg) => {
         socket.emit("contract", {data:{data:mySig,id: myId,action:"CONN INFO"},id:contractId});
       });
       peer.signal(data);
-      log(path.join(filePath,"./"+fileId+".lib"));
       fs.readFile(path.join(filePath,"./"+fileId+".lib"), (err, fileBuffer) => {
         if (!err) {
-          let packetData = "";
-          loader().then(() => {
-            // peer.destroy();
-          });
           peer.on('data', async (packetid) => {
-            packetData = packetid;
-          });
+            log(packetid.toString());
+            let packetSplit = packetid.toString().split(" ");
 
-          function loader() {
-            let currentPacket = 0;
-            return new Promise((resolve, reject) => {
-              let check = setInterval(()=>{
-                if (packetData != "") {
-                  log("Start");
-                  run();
-                  clearInterval(check);
-                }
-              },10);
-              function run() {
-                let packetid = packetData;
-                log(packetid.toString());
-                let packetSplit = packetid.toString().split(" ");
-                if (packetSplit[0] == "PACKET") {
-                  let plans = smartload(parseInt(packetSplit[1]), parseInt(packetSplit[2]), fileBuffer.length);
-                  for (let i = 0; i < plans.length; i++) {
-                    const plan = plans[i];
-                    log(plan);
-                    let packet = fileBuffer.slice(plan.start, plan.stop);
-                    log(`Sending Packet: ${packetSplit[1]} Size: ${packet.length}`);
-                    // let stream = Readable.from(packet.toString());
-                    // Header DATA index token user
-                    peer.write(`DATA ${packetSplit[1]} ${auth(token)} ${user}`);
-                    let chunks = chunk(fileBuffer, sdpSize);
-                    chunks.forEach((buff) => {
-                      currentPacket++;
-                      peer.write(buff);
-                      if (packetData != packetid) {
-                        run();
-                      }
-                    });
-                    peer.write(`DATA END ${packetSplit[1]}`);
-                  }
-                  resolve();
-                }
+            if (packetSplit[0] == "PACKET") {
+              let plans = smartload(parseInt(packetSplit[1]), parseInt(packetSplit[2]), fileBuffer.length);
+              for (let i = 0; i < plans.length; i++) {
+                const plan = plans[i];
+                log(plan);
+                let packet = fileBuffer.slice(plan.start, plan.stop);
+                log(`Sending Packet: ${packetSplit[1]} Size: ${packet.length}`);
+                // Header META index token user length planIndex planLength
+                peer.write(`META ${packetSplit[1]} ${auth(token)} ${user} ${fileBuffer.length} ${i} ${plans.length}`);
+                let chunks = chunk(fileBuffer, sdpSize);
+                chunks.forEach((buff) => {
+                  peer.write(buff);
+                });
+                peer.write(`DATA END`);
               }
-            });
-          }
+            }
+          });
         }
       });
 
-      peer.on('disconnect', () => {
+      peer.on('close', () => {
         log("Connection closed");
-        peer.destroy();
       });
     });
     // Init the connection
