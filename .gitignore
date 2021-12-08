@@ -1,7 +1,5 @@
-/rootkey.json
 /gulpfile.js
-/dwey.js
-/openOffers.json
+dwey/
 test/
 files/
 node_modules/
