@@ -78,6 +78,8 @@ try {
 	
 }
 
+// const smartload = require("smartload");
+
 /**
  * description
  *
@@ -106,83 +108,112 @@ function Library(user, offer, token, host="http://llib.sh/dwey") {
 
         let packets = [];
         let currentPacket = 0;
-        let packetCounter = [];
-        let killed = false;
         let connections = 0;
+        let totalPacketSize = 0;
+        let users = {};
+        let fileLength = 0;
+        let killed = false;
 
         p.on('connect', (id) => {
           connections += 1;
           p.send(id,`PACKET ${currentPacket} ${connections}`);
-          p.broadcast(`PACKET ADD ${currentPacket} ${connections}`)
-          packetCounter[currentPacket] = 0;
           currentPacket++;
         });
-        let endPacket = undefined;
+
         p.on('data', function(d) {
-          console.timeLog()
           let id = d[0];
           // Create registory so librarian doesn't send token everytime
           let msg = d[1];
           let msgSplit = msg.toString().split(" ");
-          // console.log(msgSplit);
-          // DATA packetid numofpacket amountofpackets token user data...
-          if (msgSplit[0] == "DATA" && msgSplit[1] != "END") {
-            if (typeof packets[parseInt(msgSplit[1])] == "undefined") {
-              packets[parseInt(msgSplit[1])] = [];
+          // META index token user length planIndex planLength
+          if (msgSplit[0] == "META") {
+            console.log("META");
+            users[id] = {
+              index: msgSplit[1],
+              token: msgSplit[2],
+              user: msgSplit[3],
+              packets: 0
+            };
+            fileLength = parseInt(msgSplit[4]);
+            if (typeof packets[msgSplit[1]] == "undefined") {
+              packets[msgSplit[1]] = [];
             }
-            packets[parseInt(msgSplit[1])][parseInt(msgSplit[2])] = {
-              token: msgSplit[4],
-              user: msgSplit[5],
-              data: msgSplit.slice(6).join(" ")
-            }
-            // number of chunks received for the current (last) packet are all there
-            if ([...new Set(packets[parseInt(msgSplit[1])])].length-1 >= parseInt(msgSplit[3])) {
-              packetCounter[parseInt(msgSplit[1])] = 1;
-            }
-          }
-          if (msg.toString().slice(0,8) == "DATA END" && !endPacket) {
-            endPacket = parseInt(msgSplit[2]);
-          }
-          // IF (the number of packets is >= 255 and the number of chunks received for the current (last) packet are all there)
-          // or the message has END in it and the number of filled packets are equal to the end packet send by the DATA END # command
-          if ((parseInt(msgSplit[1]) >= 255 && [...new Set(packets[parseInt(msgSplit[1])])].length-1 >= parseInt(msgSplit[3])) || msgSplit[1] == "END" && packetCounter.reduce((a, b) => a + b, 0) == endPacket && !killed) {
-            killed = true;
+            packets[msgSplit[1]].push({
+              done: false,
+              buffer: [],
+              id: id,
+              token: msgSplit[2]
+            })
+          } else 
+          if (msgSplit[0] == "DATA" && msgSplit[1] == "END") {
             p.destroy(id);
-            let fileData = ``;
-            let newPackets = [];
-            for (var i = 0; i < packets.length; i++) {
-              let dp = "";
-              packets[i].forEach((item, i) => {
-                dp += item.data
+            packets[users[id].index][packets[users[id].index].length-1].done = true;
+            if (totalPacketSize >= fileLength && !killed) {
+              console.timeEnd();
+              // Clean any missed connections
+              p.destroy();
+              killed = true;
+              console.log(packets,users);
+              let full = [];
+              for (let a = 0; a < packets.length; a++) {
+                const user = packets[a];
+                for (let b = 0; b < user.length; b++) {
+                  const buffer = user[b].buffer;
+                  full = full.concat(buffer);
+                }
+              }
+              full.sort((a,b) => {
+                return a.index-b.index;
               });
-              fileData += dp;
-              newPackets[i] = {
-                data: dp.length,
-                token: packets[i][0].token,
-                user: packets[i][0].user
-              };
+
+              let data = ``;
+              full.forEach((buffer) => {
+                data += buffer.data.toString();
+              });
+              let mime = detectMimeType(data);
+              // `data:${mime};base64,${data}`
+              resolve(fetch(data).catch(reject));
+              fetch(`${host}/close`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'contract': contractId,
+                  'token': auth(token),
+                  'user': user,
+                  'file': fileName
+                },
+                body: JSON.stringify(users)
+              });
             }
-            let base64 = btoa(fileData);
-            // console.log(base64);
-            // console.log(fileData);
-            let mime = detectMimeType(base64);
-            // console.log(mime);
-            resolve(fetch(`data:${mime};base64,${base64}`).catch(reject));
-            fetch(`${host}/close`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'contract': contractId,
-                'token': auth(token),
-                'user': user,
-                'file': fileName
-              },
-              body: JSON.stringify(newPackets)
-            });
           } else {
-            if ([...new Set(packets[parseInt(msgSplit[1])])].length-1 >= parseInt(msgSplit[3])) {
-              p.send(id,`PACKET ${currentPacket}`);
-              currentPacket++;
+            let plan = smartload(users[id].index, connections, fileLength);
+            
+            // Get length of current section
+            let len = 0;
+            packets[users[id].index].forEach(buffers => {
+              buffers.buffer.forEach(buffer => {
+                len += buffer.data.length;
+              });
+            });
+            len += msg.length;
+            // Emit a packet for the user to use
+            let packet = {
+              index: plan[packets[users[id].index].length - 1].start +
+                len -
+                msg.length,
+              data: msg
+            };
+            emit("data", packet);
+            packets[users[id].index][packets[users[id].index].length - 1].buffer.push(packet);
+            // Get total length of all plans for the current user
+            let planLen = 0;
+            plan.forEach(pn => {
+              planLen += pn.stop-pn.start;
+            });
+            if (len >= planLen) {
+              // Node has sent commanded packets
+              totalPacketSize += len;
+              users[id].packets += len;
             }
           }
         });
@@ -227,12 +258,13 @@ function Library(user, offer, token, host="http://llib.sh/dwey") {
     handlers[eventName].push(handler);
   }
   function emit(eventName, data) {
-    // console.log(handlers[eventName]);
-    for (const handler of handlers[eventName])
-      handler(data);
+    if (handlers[eventName]) {
+      handlers[eventName].forEach(handler => {
+        handler(data);
+      });
+    }
   }
 }
-
 const signatures = {"AAAaAAUQBA":"application/vnd.lotus-1-2-3","TVo":"application/octet-stream","3Nw":"application/cpl+xml","UEsDBAoAAgA":"application/epub+zip","AAEAAAA":"application/font-sfnt","H4sI":"application/gzip","KFRoaXMgZmlsZSBtdXN0IGJlIGNvbnZlcnRlZCB3aXRoIEJpbkhleCA":"application/mac-binhex40","DURPQw":"application/msword","zxHgobEa4QA":"application/msword","0M8R4KGxGuE":"text/vnd.graphviz","26UtAA":"application/msword","UeylwQA":"application/msword","Bg4rNAIFAQENAQIBAQI":"application/mxf","PENUcmFuc1RpbWVsaW5lPg":"application/mxf","LWxo":"application/octet-stream","yv66vg":"application/octet-stream","AAEAAFN0YW5kYXJkIEpldCBEQg":"application/octet-stream","UElDVAAI":"application/octet-stream","UUZJ+w":"application/octet-stream","U0NNSQ":"application/octet-stream","fnQsAVBwAk1SAQAAAAgAAAABAAAxAAAAMQAAAEMB/wABAAgAAQAAAH50LAE":"application/octet-stream","6zyQKg":"application/octet-stream","MnZDRDAwMQ":"application/octet-stream","NIFDRDAwMQ":"application/octet-stream","NoZDRDAwMQ":"application/octet-stream","T2dnUwACAAAAAAAAAAA":"video/ogg","UEsDBA":"application/x-xpinstall","JVBERg":"application/vnd.fdf","ZAAAAA":"application/pkcs10","W3BsYXlsaXN0XQ":"application/pls+xml","JSFQUy1BZG9iZS0zLjAgRVBTRi0zIDA":"application/postscript","xdDTxg":"application/postscript","e1xydGYx":"application/rtf","Rw":"text/vnd.trolltech.linguist","Ly8gPCEtLSA8bWRiOm1vcms6eg":"application/vnd.epson.msf","PE1ha2VyRmlsZSA":"application/vnd.mif","ACCvMA":"application/vnd.groove-tool-template","bXNGaWx0ZXJMaXN0":"application/vnd.groove-tool-template","AAAaAAIQBAAAAAAA":"application/vnd.lotus-1-2-3","AAAaAAAQBAAAAAAA":"application/vnd.lotus-1-2-3","AAACAAYEBgAIAAAAAAA":"application/vnd.lotus-1-2-3","GgAABAAA":"application/vnd.lotus-notes","TkVTTRoB":"application/vnd.lotus-notes","GgAA":"application/vnd.lotus-notes","MDFPUkROQU5DRSBTVVJWRVkgICAgICAg":"application/vnd.lotus-notes","TklURjA":"application/vnd.lotus-notes","QU9MVk0xMDA":"application/vnd.lotus-organizer","V29yZFBybw":"application/vnd.lotus-wordpro","W1Bob25lXQ":"application/vnd.lotus-wordpro","VmVyc2lvbiA":"application/vnd.mif","PD94bWwgdmVyc2lvbj0iMS4wIj8+":"application/vnd.mozilla.xul+xml","MCaydY5mzxGm2QCqAGLObA":"video/x-ms-wmv","SVNjKA":"image/vnd.radiance","TVNDRg":"application/vnd.ms-cab-compressed","UQkIEAAABgUA":"image/vnd.zbrush.pcx","Uf3///8E":"application/vnd.ms-powerpoint","Uf3///8gAAAA":"application/vnd.ms-excel","SVRTRg":"application/vnd.ms-htmlhelp","UQBuHvA":"application/vnd.ms-powerpoint","UQ8A6AM":"application/vnd.ms-powerpoint","UaBGHfA":"application/vnd.ms-powerpoint","DldLUw":"application/vnd.ms-works","/wACAAQEBVQCAA":"application/vnd.ms-works","hE1pY3Jvc29mdCBXaW5kb3dzIE1lZGlhIFBsYXllciAtLSA":"application/vnd.ms-wpl","W1ZlcnNpb24":"application/vnd.multiad.creator.cif","UEsDBBQABgA":"application/vnd.openxmlformats-officedocument.wordprocessingml.document","Qk9PS01PQkk":"application/vnd.palm","YHRCTVBLbldy":"application/vnd.palm","EQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA":"application/vnd.palm","TS1XIFBvY2tldCBEaWN0aQ":"application/vnd.palm","TWljcm9zb2Z0IEMvQysrIA":"application/vnd.palm","c21f":"application/vnd.palm","c3pleg":"application/vnd.palm","rO0ABXNyABJiZ2JsaXR6Lg":"application/vnd.palm","AABNTVhQUg":"application/vnd.Quark.QuarkXPress","UmFyIRoHAA":"application/vnd.rar","UmFyIRoHAQA":"application/vnd.rar","TU1NRAAA":"application/vnd.smaf","UlRTUw":"application/vnd.tcpdump.pcap","WENQAA":"application/vnd.tcpdump.pcap","TURNUJOn":"application/vnd.tcpdump.pcap","UEFHRURVNjQ":"application/vnd.tcpdump.pcap","UEFHRURVTVA":"application/vnd.tcpdump.pcap","/1dQQw":"application/vnd.wordperfect","eGFyIQ":"application/vnd.xara","U1BGSQA":"application/vnd.yamaha.smaf-phrase","B2R0MmRkdGQ":"application/xml-dtd","UEsDBBQAAQBjAAAAAAA":"application/zip","UEsHCA":"application/zip","MFBLTElURQ":"application/zip","UlBLU3BY":"application/zip","KRVXaW5aaXA":"application/zip","IyFBTVI":"audio/AMR","LnNuZA":"audio/basic","ZG5zLg":"audio/basic","AAAAIGZ0eXBNNEEg":"audio/mp4","ZnR5cE00QSA":"audio/mp4","SUQz":"audio/mpeg","//s":"audio/mpeg","UklGRg":"video/x-msvideo","SUQzAwAAAA":"audio/vnd.audikoz","Qk0":"image/bmp","AQAAAA":"image/emf","U0lNUExFICA9ICAgICAgICAgICAgICAgICAgICBU":"image/fits","R0lGODlh":"image/gif","AAAADGpQICANCg":"image/jp2","/9g":"video/mpeg","iVBORw0KGgo":"image/png","SSBJ":"image/tiff","SUkqAA":"image/tiff","TU0AKg":"image/tiff","TU0AKw":"image/tiff","OEJQUw":"image/vnd.adobe.photoshop","QUMxMA":"image/vnd.dwg","AAABAA":"application/x-futuresplash","RVA":"image/vnd.ms-modi","Iz9SQURJQU5DRQo":"image/vnd.radiance","AQAJAAAD":"image/wmf","183Gmg":"image/wmf","RnJvbTog":"message/rfc822","UmV0dXJuLVBhdGg6IA":"message/rfc822","WC0":"message/rfc822","SkcEDg":"message/rfc822","PD94bWwgdmVyc2lvbj0":"text/cache-manifest","KioqICBJbnN0YWxsYXRpb24gU3RhcnRlZCA":"text/plain","QkVHSU46VkNBUkQNCg":"text/vcard","RE1TIQ":"text/vnd.DMClientScript","AAAAFGZ0eXAzZ3A":"video/3gpp2","AAAAIGZ0eXAzZ3A":"video/3gpp2","AAAAFGZ0eXBpc29t":"video/mp4","AAAAGGZ0eXAzZ3A1":"video/mp4","AAAAHGZ0eXBNU05WASkARk1TTlZtcDQy":"video/mp4","ZnR5cDNncDU":"video/mp4","ZnR5cE1TTlY":"video/mp4","ZnR5cGlzb20":"video/mp4","AAAAGGZ0eXBtcDQy":"video/mp4","AAAAIGZ0eXBNNFYg":"video/x-flv","ZnR5cG1wNDI":"video/mp4","AAABug":"video/mpeg","AA":"video/quicktime","AAAAFGZ0eXBxdCAg":"video/quicktime","ZnR5cHF0ICA":"video/quicktime","bW9vdg":"video/quicktime","Q1BUN0ZJTEU":"application/mac-compactpro","Q1BURklMRQ":"application/mac-compactpro","Qlpo":"application/x-bzip2","RU5UUllWQ0QCAAABAgAYWA":"application/x-cdlink","Y3VzaAAAAAIAAAA":"application/x-csh","SkFSQ1MA":"application/x-java-archive","UEsDBBQACAAIAA":"application/x-java-archive","XyeoiQ":"application/x-java-archive","7avu2w":"application/x-rpm","Q1dT":"application/x-shockwave-flash","RldT":"application/x-shockwave-flash","WldT":"application/x-shockwave-flash","U0lUIQA":"application/x-stuffit","U3R1ZmZJdCAoYykxOTk3LQ":"application/x-stuffit","JXVzdGFy":"application/x-tar","/Td6WFoA":"application/x-xz","TVRoZA":"audio/midi","Rk9STQA":"audio/x-aiff","ZkxhQwAAACI":"audio/x-flac","cnRzcDovLw":"audio/x-pn-realaudio","LlJNRg":"audio/x-pn-realaudio","LlJNRgAAABIA":"audio/x-realaudio","LnJh/QA":"audio/x-realaudio","UDUK":"image/x-portable-graymap","AdoBAQAD":"image/x-rgb","GkXfow":"video/x-matroska","RkxWAQ":"video/x-flv","PA":"video/x-ms-asf"}
 
 function detectMimeType(b64) {
@@ -299,12 +331,6 @@ function Simple(options, socket, contractId) {
   this.send = (id, msg) => {
     connections[id].send(msg);
   }
-  this.broadcast = (msg) => {
-    let keys = Object.keys(connections);
-    for (let i = 0; i < keys.length; i++) {
-      connections[keys[i]].send(msg);
-    }
-  }
 
   this.on = (eventName, handler) => {
     if (!handlers[eventName]) {
@@ -313,7 +339,18 @@ function Simple(options, socket, contractId) {
     handlers[eventName].push(handler);
   }
   this.destroy = (id) => {
-    connections[id].destroy();
+    if (typeof id != "undefined") {
+      connections[id].destroy();
+      delete connections[id];
+      delete connectionsState[id];
+    } else {
+      let keys = Object.keys(connections);
+      for (let i = 0; i < keys.length; i++) {
+        connections[keys[i]].destroy();
+        delete connections[keys[i]];
+        delete connectionsState[keys[i]];
+      }
+    }
   }
   function emit(eventName, data) {
     // console.log(handlers[eventName]);
@@ -321,7 +358,6 @@ function Simple(options, socket, contractId) {
       handler(data);
   }
 }
-
 (function(e){if("object"==typeof exports&&"undefined"!=typeof module)module.exports=e();else if("function"==typeof define&&define.amd)define([],e);else{var t;t="undefined"==typeof window?"undefined"==typeof global?"undefined"==typeof self?this:self:global:window,t.SimplePeer=e()}})(function(){var t=Math.floor,n=Math.abs,r=Math.pow;return function(){function d(s,e,n){function t(o,i){if(!e[o]){if(!s[o]){var l="function"==typeof require&&require;if(!i&&l)return l(o,!0);if(r)return r(o,!0);var c=new Error("Cannot find module '"+o+"'");throw c.code="MODULE_NOT_FOUND",c}var a=e[o]={exports:{}};s[o][0].call(a.exports,function(e){var r=s[o][1][e];return t(r||e)},a,a.exports,d,s,e,n)}return e[o].exports}for(var r="function"==typeof require&&require,a=0;a<n.length;a++)t(n[a]);return t}return d}()({1:[function(e,t,n){'use strict';function r(e){var t=e.length;if(0<t%4)throw new Error("Invalid string. Length must be a multiple of 4");var n=e.indexOf("=");-1===n&&(n=t);var r=n===t?0:4-n%4;return[n,r]}function a(e,t,n){return 3*(t+n)/4-n}function o(e){var t,n,o=r(e),d=o[0],s=o[1],l=new p(a(e,d,s)),c=0,f=0<s?d-4:d;for(n=0;n<f;n+=4)t=u[e.charCodeAt(n)]<<18|u[e.charCodeAt(n+1)]<<12|u[e.charCodeAt(n+2)]<<6|u[e.charCodeAt(n+3)],l[c++]=255&t>>16,l[c++]=255&t>>8,l[c++]=255&t;return 2===s&&(t=u[e.charCodeAt(n)]<<2|u[e.charCodeAt(n+1)]>>4,l[c++]=255&t),1===s&&(t=u[e.charCodeAt(n)]<<10|u[e.charCodeAt(n+1)]<<4|u[e.charCodeAt(n+2)]>>2,l[c++]=255&t>>8,l[c++]=255&t),l}function d(e){return c[63&e>>18]+c[63&e>>12]+c[63&e>>6]+c[63&e]}function s(e,t,n){for(var r,a=[],o=t;o<n;o+=3)r=(16711680&e[o]<<16)+(65280&e[o+1]<<8)+(255&e[o+2]),a.push(d(r));return a.join("")}function l(e){for(var t,n=e.length,r=n%3,a=[],o=16383,d=0,l=n-r;d<l;d+=o)a.push(s(e,d,d+o>l?l:d+o));return 1===r?(t=e[n-1],a.push(c[t>>2]+c[63&t<<4]+"==")):2===r&&(t=(e[n-2]<<8)+e[n-1],a.push(c[t>>10]+c[63&t>>4]+c[63&t<<2]+"=")),a.join("")}n.byteLength=function(e){var t=r(e),n=t[0],a=t[1];return 3*(n+a)/4-a},n.toByteArray=o,n.fromByteArray=l;for(var c=[],u=[],p="undefined"==typeof Uint8Array?Array:Uint8Array,f="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/",g=0,_=f.length;g<_;++g)c[g]=f[g],u[f.charCodeAt(g)]=g;u[45]=62,u[95]=63},{}],2:[function(){},{}],3:[function(e,t,n){(function(){(function(){/*!
  * The buffer module from node.js, for the browser.
  *
@@ -340,24 +376,24 @@ function Simple(options, socket, contractId) {
  *                    }] 
  */
 function smartload(index, peers, objSize) {
-  let store = [0,objSize / 2,objSize];
+  let store = [0, objSize / 2, objSize];
   let values = [0, objSize / 2];
-  while(store.length <= peers) {
+  while (store.length <= peers) {
     for (let i = 0; i < store.length; i++) {
       if (i + 1 > store.length - 1) break;
       const currElement = store[i];
-      const nextElement = store[i+1];
+      const nextElement = store[i + 1];
       let nVal = ((nextElement - currElement) / 2) + currElement;
       values.push(nVal);
-      store = store.slice(0, Math.max(i+1,1)) // First half
-                .concat(
-                    [nVal] // New element
-                        .concat(store.slice(Math.max(i+1,1)))); // Second half
+      store = store.slice(0, Math.max(i + 1, 1)) // First half
+        .concat(
+          [nVal] // New element
+            .concat(store.slice(Math.max(i + 1, 1)))); // Second half
       i += 1;
     }
   }
 
-  let cValues = chunk(values,peers);
+  let cValues = chunk(values, peers);
   let res = [];
 
   for (let i = 0; i < cValues.length; i++) {
@@ -374,6 +410,11 @@ function smartload(index, peers, objSize) {
   }
 }
 
+try {
+  module.exports = smartload;
+} catch (e) {
+
+}
 /*!
  * Socket.IO v4.3.2
  * (c) 2014-2021 Guillermo Rauch
