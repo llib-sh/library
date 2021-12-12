@@ -18,7 +18,7 @@
     "pepsin": "^1.0.1",
     "simple-peer": "^9.11.0",
     "smartload": "^1.0.1",
-    "socket.io-client": "^4.3.2",
+    "socket.io-client": "^4.3.2"
   },
   "repository": {
     "type": "git",

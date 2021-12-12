@@ -8,9 +8,7 @@ const wrtc = require('wrtc');
 const yargs = require('yargs');
 const pepsin = require('pepsin');
 const smartload = require('smartload');
-const { Readable } = require('stream');
 const {table,getBorderCharacters} = require('table');
-const { runMain } = require('module');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const options = yargs
@@ -131,6 +129,7 @@ socket.on("REQ", async (msg) => {
 
             if (packetSplit[0] == "PACKET") {
               let plans = smartload(parseInt(packetSplit[1]), parseInt(packetSplit[2]), fileBuffer.length);
+              log(plans);
               for (let i = 0; i < plans.length; i++) {
                 const plan = plans[i];
                 log(plan);
@@ -138,7 +137,7 @@ socket.on("REQ", async (msg) => {
                 log(`Sending Packet: ${packetSplit[1]} Size: ${packet.length}`);
                 // Header META index token user length planIndex planLength
                 peer.write(`META ${packetSplit[1]} ${auth(token)} ${user} ${fileBuffer.length} ${i} ${plans.length}`);
-                let chunks = chunk(fileBuffer, sdpSize);
+                let chunks = chunk(packet, sdpSize);
                 chunks.forEach((buff) => {
                   peer.write(buff);
                 });
