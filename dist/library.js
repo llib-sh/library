@@ -1,25 +1,25 @@
 var charSet = "LMEry3CbeUAzt08nOxHhpc1ufsTSRia92jVGPIvNoJKZQdm6WlXFYgqkD7B54w";
 function shift(str, amount) {
-	var ret = "";
+    var ret = "";
     for (var i = 0; i < str.length; i++) {
-    	ret += charSet[(charSet.indexOf(str[i]) + amount)%charSet.length];
+        ret += charSet[(charSet.indexOf(str[i]) + amount) % charSet.length];
     }
     return ret;
 }
 function unShift(str, amount) {
-	var uCharSet = charSet.split("").reverse();
-	var ret = "";
+    var uCharSet = charSet.split("").reverse();
+    var ret = "";
     for (var i = 0; i < str.length; i++) {
-    	ret += uCharSet[(uCharSet.indexOf(str[i]) + amount)%uCharSet.length];
+        ret += uCharSet[(uCharSet.indexOf(str[i]) + amount) % uCharSet.length];
     }
     return ret;
 }
 function a2hex(str) {
-  var ret = "";
-  for (var i = 0, l = str.length; i < l; i ++) {
-    ret += Number(str.charCodeAt(i)).toString(16);
-  }
-  return ret;
+    var ret = "";
+    for (var i = 0, l = str.length; i < l; i++) {
+        ret += Number(str.charCodeAt(i)).toString(16);
+    }
+    return ret;
 }
 function hex2a(hexx) {
     var hex = hexx.toString();//force conversion
@@ -29,19 +29,19 @@ function hex2a(hexx) {
     return str;
 }
 function genPassPhrase(length, passPhrase) {
-	passPhrase = hash(passPhrase);
-	while (length > passPhrase.length) {
-	    passPhrase = passPhrase + hash(passPhrase);
-	}
-	passPhrase += hash(passPhrase);
-	return passPhrase;
+    passPhrase = hash(passPhrase);
+    while (length > passPhrase.length) {
+        passPhrase = passPhrase + hash(passPhrase);
+    }
+    passPhrase += hash(passPhrase);
+    return passPhrase;
 }
 function cipherHash(msg, passPhrase) {
-	msg = a2hex(msg);
+    msg = a2hex(msg);
     passPhrase = genPassPhrase(msg.length, passPhrase);
     var results = "";
     for (var i = 0; i < msg.length; i++) {
-    	results += shift(msg[i].toString(), charSet.indexOf(passPhrase[i]));
+        results += shift(msg[i].toString(), charSet.indexOf(passPhrase[i]));
     }
     return results;
 }
@@ -53,31 +53,235 @@ function unCipherHash(msg, passPhrase) {
     passPhrase = genPassPhrase(msg.length, passPhrase);
     var results = "";
     for (var i = 0; i < msg.length; i++) {
-    	results += unShift(msg[i].toString(), charSet.indexOf(passPhrase[i]));
+        results += unShift(msg[i].toString(), charSet.indexOf(passPhrase[i]));
     }
     return hex2a(results);
 }
-var CryptoJS=CryptoJS||function(h,s){var f={},t=f.lib={},g=function(){},j=t.Base={extend:function(a){g.prototype=this;var c=new g;a&&c.mixIn(a);c.hasOwnProperty("init")||(c.init=function(){c.$super.init.apply(this,arguments)});c.init.prototype=c;c.$super=this;return c},create:function(){var a=this.extend();a.init.apply(a,arguments);return a},init:function(){},mixIn:function(a){for(var c in a)a.hasOwnProperty(c)&&(this[c]=a[c]);a.hasOwnProperty("toString")&&(this.toString=a.toString)},clone:function(){return this.init.prototype.extend(this)}},
-q=t.WordArray=j.extend({init:function(a,c){a=this.words=a||[];this.sigBytes=c!=s?c:4*a.length},toString:function(a){return(a||u).stringify(this)},concat:function(a){var c=this.words,d=a.words,b=this.sigBytes;a=a.sigBytes;this.clamp();if(b%4)for(var e=0;e<a;e++)c[b+e>>>2]|=(d[e>>>2]>>>24-8*(e%4)&255)<<24-8*((b+e)%4);else if(65535<d.length)for(e=0;e<a;e+=4)c[b+e>>>2]=d[e>>>2];else c.push.apply(c,d);this.sigBytes+=a;return this},clamp:function(){var a=this.words,c=this.sigBytes;a[c>>>2]&=4294967295<<
-32-8*(c%4);a.length=h.ceil(c/4)},clone:function(){var a=j.clone.call(this);a.words=this.words.slice(0);return a},random:function(a){for(var c=[],d=0;d<a;d+=4)c.push(4294967296*h.random()|0);return new q.init(c,a)}}),v=f.enc={},u=v.Hex={stringify:function(a){var c=a.words;a=a.sigBytes;for(var d=[],b=0;b<a;b++){var e=c[b>>>2]>>>24-8*(b%4)&255;d.push((e>>>4).toString(16));d.push((e&15).toString(16))}return d.join("")},parse:function(a){for(var c=a.length,d=[],b=0;b<c;b+=2)d[b>>>3]|=parseInt(a.substr(b,
-2),16)<<24-4*(b%8);return new q.init(d,c/2)}},k=v.Latin1={stringify:function(a){var c=a.words;a=a.sigBytes;for(var d=[],b=0;b<a;b++)d.push(String.fromCharCode(c[b>>>2]>>>24-8*(b%4)&255));return d.join("")},parse:function(a){for(var c=a.length,d=[],b=0;b<c;b++)d[b>>>2]|=(a.charCodeAt(b)&255)<<24-8*(b%4);return new q.init(d,c)}},l=v.Utf8={stringify:function(a){try{return decodeURIComponent(escape(k.stringify(a)))}catch(c){throw Error("Malformed UTF-8 data");}},parse:function(a){return k.parse(unescape(encodeURIComponent(a)))}},
-x=t.BufferedBlockAlgorithm=j.extend({reset:function(){this._data=new q.init;this._nDataBytes=0},_append:function(a){"string"==typeof a&&(a=l.parse(a));this._data.concat(a);this._nDataBytes+=a.sigBytes},_process:function(a){var c=this._data,d=c.words,b=c.sigBytes,e=this.blockSize,f=b/(4*e),f=a?h.ceil(f):h.max((f|0)-this._minBufferSize,0);a=f*e;b=h.min(4*a,b);if(a){for(var m=0;m<a;m+=e)this._doProcessBlock(d,m);m=d.splice(0,a);c.sigBytes-=b}return new q.init(m,b)},clone:function(){var a=j.clone.call(this);
-a._data=this._data.clone();return a},_minBufferSize:0});t.Hasher=x.extend({cfg:j.extend(),init:function(a){this.cfg=this.cfg.extend(a);this.reset()},reset:function(){x.reset.call(this);this._doReset()},update:function(a){this._append(a);this._process();return this},finalize:function(a){a&&this._append(a);return this._doFinalize()},blockSize:16,_createHelper:function(a){return function(c,d){return(new a.init(d)).finalize(c)}},_createHmacHelper:function(a){return function(c,d){return(new w.HMAC.init(a,
-d)).finalize(c)}}});var w=f.algo={};return f}(Math);
-(function(h){for(var s=CryptoJS,f=s.lib,t=f.WordArray,g=f.Hasher,f=s.algo,j=[],q=[],v=function(a){return 4294967296*(a-(a|0))|0},u=2,k=0;64>k;){var l;a:{l=u;for(var x=h.sqrt(l),w=2;w<=x;w++)if(!(l%w)){l=!1;break a}l=!0}l&&(8>k&&(j[k]=v(h.pow(u,0.5))),q[k]=v(h.pow(u,1/3)),k++);u++}var a=[],f=f.SHA256=g.extend({_doReset:function(){this._hash=new t.init(j.slice(0))},_doProcessBlock:function(c,d){for(var b=this._hash.words,e=b[0],f=b[1],m=b[2],h=b[3],p=b[4],j=b[5],k=b[6],l=b[7],n=0;64>n;n++){if(16>n)a[n]=
-c[d+n]|0;else{var r=a[n-15],g=a[n-2];a[n]=((r<<25|r>>>7)^(r<<14|r>>>18)^r>>>3)+a[n-7]+((g<<15|g>>>17)^(g<<13|g>>>19)^g>>>10)+a[n-16]}r=l+((p<<26|p>>>6)^(p<<21|p>>>11)^(p<<7|p>>>25))+(p&j^~p&k)+q[n]+a[n];g=((e<<30|e>>>2)^(e<<19|e>>>13)^(e<<10|e>>>22))+(e&f^e&m^f&m);l=k;k=j;j=p;p=h+r|0;h=m;m=f;f=e;e=r+g|0}b[0]=b[0]+e|0;b[1]=b[1]+f|0;b[2]=b[2]+m|0;b[3]=b[3]+h|0;b[4]=b[4]+p|0;b[5]=b[5]+j|0;b[6]=b[6]+k|0;b[7]=b[7]+l|0},_doFinalize:function(){var a=this._data,d=a.words,b=8*this._nDataBytes,e=8*a.sigBytes;
-d[e>>>5]|=128<<24-e%32;d[(e+64>>>9<<4)+14]=h.floor(b/4294967296);d[(e+64>>>9<<4)+15]=b;a.sigBytes=4*d.length;this._process();return this._hash},clone:function(){var a=g.clone.call(this);a._hash=this._hash.clone();return a}});s.SHA256=g._createHelper(f);s.HmacSHA256=g._createHmacHelper(f)})(Math);
+function binch(arr, passPhrase, offset = 0) {
+    passPhrase = genPassPhrase(arr.length, passPhrase);
+    var results = [];
+    for (var i = 0; i < arr.length; i++) {
+        let code = passPhrase.charCodeAt(i + offset);
+        results.push(arr[i] > 127 ? arr[i] - code: arr[i] + code);
+    }
+    return results;
+}
+function unBinch(arr, passPhrase, offset = 0) {
+    passPhrase = genPassPhrase(arr.length, passPhrase);
+    var results = [];
+    for (var i = 0; i < arr.length; i++) {
+        let code = passPhrase.charCodeAt(i + offset);
+        console.log(code);
+        results.push(arr[i]-code < 127 ? arr[i] + code : arr[i] - code);
+    }
+    return results;
+}
+var CryptoJS = CryptoJS || function (h, s) {
+    var f = {}, t = f.lib = {}, g = function () { }, j = t.Base = { extend: function (a) { g.prototype = this; var c = new g; a && c.mixIn(a); c.hasOwnProperty("init") || (c.init = function () { c.$super.init.apply(this, arguments) }); c.init.prototype = c; c.$super = this; return c }, create: function () { var a = this.extend(); a.init.apply(a, arguments); return a }, init: function () { }, mixIn: function (a) { for (var c in a) a.hasOwnProperty(c) && (this[c] = a[c]); a.hasOwnProperty("toString") && (this.toString = a.toString) }, clone: function () { return this.init.prototype.extend(this) } },
+    q = t.WordArray = j.extend({
+        init: function (a, c) { a = this.words = a || []; this.sigBytes = c != s ? c : 4 * a.length }, toString: function (a) { return (a || u).stringify(this) }, concat: function (a) { var c = this.words, d = a.words, b = this.sigBytes; a = a.sigBytes; this.clamp(); if (b % 4) for (var e = 0; e < a; e++)c[b + e >>> 2] |= (d[e >>> 2] >>> 24 - 8 * (e % 4) & 255) << 24 - 8 * ((b + e) % 4); else if (65535 < d.length) for (e = 0; e < a; e += 4)c[b + e >>> 2] = d[e >>> 2]; else c.push.apply(c, d); this.sigBytes += a; return this }, clamp: function () {
+            var a = this.words, c = this.sigBytes; a[c >>> 2] &= 4294967295 <<
+                32 - 8 * (c % 4); a.length = h.ceil(c / 4)
+        }, clone: function () { var a = j.clone.call(this); a.words = this.words.slice(0); return a }, random: function (a) { for (var c = [], d = 0; d < a; d += 4)c.push(4294967296 * h.random() | 0); return new q.init(c, a) }
+    }), v = f.enc = {}, u = v.Hex = {
+        stringify: function (a) { var c = a.words; a = a.sigBytes; for (var d = [], b = 0; b < a; b++) { var e = c[b >>> 2] >>> 24 - 8 * (b % 4) & 255; d.push((e >>> 4).toString(16)); d.push((e & 15).toString(16)) } return d.join("") }, parse: function (a) {
+            for (var c = a.length, d = [], b = 0; b < c; b += 2)d[b >>> 3] |= parseInt(a.substr(b,
+                2), 16) << 24 - 4 * (b % 8); return new q.init(d, c / 2)
+        }
+    }, k = v.Latin1 = { stringify: function (a) { var c = a.words; a = a.sigBytes; for (var d = [], b = 0; b < a; b++)d.push(String.fromCharCode(c[b >>> 2] >>> 24 - 8 * (b % 4) & 255)); return d.join("") }, parse: function (a) { for (var c = a.length, d = [], b = 0; b < c; b++)d[b >>> 2] |= (a.charCodeAt(b) & 255) << 24 - 8 * (b % 4); return new q.init(d, c) } }, l = v.Utf8 = { stringify: function (a) { try { return decodeURIComponent(escape(k.stringify(a))) } catch (c) { throw Error("Malformed UTF-8 data"); } }, parse: function (a) { return k.parse(unescape(encodeURIComponent(a))) } },
+    x = t.BufferedBlockAlgorithm = j.extend({
+        reset: function () { this._data = new q.init; this._nDataBytes = 0 }, _append: function (a) { "string" == typeof a && (a = l.parse(a)); this._data.concat(a); this._nDataBytes += a.sigBytes }, _process: function (a) { var c = this._data, d = c.words, b = c.sigBytes, e = this.blockSize, f = b / (4 * e), f = a ? h.ceil(f) : h.max((f | 0) - this._minBufferSize, 0); a = f * e; b = h.min(4 * a, b); if (a) { for (var m = 0; m < a; m += e)this._doProcessBlock(d, m); m = d.splice(0, a); c.sigBytes -= b } return new q.init(m, b) }, clone: function () {
+            var a = j.clone.call(this);
+            a._data = this._data.clone(); return a
+        }, _minBufferSize: 0
+    }); t.Hasher = x.extend({
+        cfg: j.extend(), init: function (a) { this.cfg = this.cfg.extend(a); this.reset() }, reset: function () { x.reset.call(this); this._doReset() }, update: function (a) { this._append(a); this._process(); return this }, finalize: function (a) { a && this._append(a); return this._doFinalize() }, blockSize: 16, _createHelper: function (a) { return function (c, d) { return (new a.init(d)).finalize(c) } }, _createHmacHelper: function (a) {
+            return function (c, d) {
+                return (new w.HMAC.init(a,
+                    d)).finalize(c)
+            }
+        }
+    }); var w = f.algo = {}; return f
+}(Math);
+(function (h) {
+    for (var s = CryptoJS, f = s.lib, t = f.WordArray, g = f.Hasher, f = s.algo, j = [], q = [], v = function (a) { return 4294967296 * (a - (a | 0)) | 0 }, u = 2, k = 0; 64 > k;) { var l; a: { l = u; for (var x = h.sqrt(l), w = 2; w <= x; w++)if (!(l % w)) { l = !1; break a } l = !0 } l && (8 > k && (j[k] = v(h.pow(u, 0.5))), q[k] = v(h.pow(u, 1 / 3)), k++); u++ } var a = [], f = f.SHA256 = g.extend({
+        _doReset: function () { this._hash = new t.init(j.slice(0)) }, _doProcessBlock: function (c, d) {
+            for (var b = this._hash.words, e = b[0], f = b[1], m = b[2], h = b[3], p = b[4], j = b[5], k = b[6], l = b[7], n = 0; 64 > n; n++) {
+                if (16 > n) a[n] =
+                    c[d + n] | 0; else { var r = a[n - 15], g = a[n - 2]; a[n] = ((r << 25 | r >>> 7) ^ (r << 14 | r >>> 18) ^ r >>> 3) + a[n - 7] + ((g << 15 | g >>> 17) ^ (g << 13 | g >>> 19) ^ g >>> 10) + a[n - 16] } r = l + ((p << 26 | p >>> 6) ^ (p << 21 | p >>> 11) ^ (p << 7 | p >>> 25)) + (p & j ^ ~p & k) + q[n] + a[n]; g = ((e << 30 | e >>> 2) ^ (e << 19 | e >>> 13) ^ (e << 10 | e >>> 22)) + (e & f ^ e & m ^ f & m); l = k; k = j; j = p; p = h + r | 0; h = m; m = f; f = e; e = r + g | 0
+            } b[0] = b[0] + e | 0; b[1] = b[1] + f | 0; b[2] = b[2] + m | 0; b[3] = b[3] + h | 0; b[4] = b[4] + p | 0; b[5] = b[5] + j | 0; b[6] = b[6] + k | 0; b[7] = b[7] + l | 0
+        }, _doFinalize: function () {
+            var a = this._data, d = a.words, b = 8 * this._nDataBytes, e = 8 * a.sigBytes;
+            d[e >>> 5] |= 128 << 24 - e % 32; d[(e + 64 >>> 9 << 4) + 14] = h.floor(b / 4294967296); d[(e + 64 >>> 9 << 4) + 15] = b; a.sigBytes = 4 * d.length; this._process(); return this._hash
+        }, clone: function () { var a = g.clone.call(this); a._hash = this._hash.clone(); return a }
+    }); s.SHA256 = g._createHelper(f); s.HmacSHA256 = g._createHmacHelper(f)
+})(Math);
 
 // Node.JS Exports
 
 try {
-	module.exports.unCipherHash = unCipherHash;
-	module.exports.cipherHash = cipherHash;
-	module.exports.hash = hash;
+    module.exports.unCipherHash = unCipherHash;
+    module.exports.cipherHash = cipherHash;
+    module.exports.hash = hash;
+    module.exports.binch = binch;
+    module.exports.unBinch = unBinch;
 } catch (e) {
-	
+    console.log(e);
 }
 
+function huffmanCoding(text) {
+  text = text.slice();
+  text.push(255);
+  let freq = {};
+  for (let i = 0; i < text.length; i++) {
+    if (freq[text[i]]) {
+      freq[text[i]]++;
+    } else {
+      freq[text[i]] = 1;
+    }
+  }
+  let nodes = [];
+  for (let letter in freq) {
+    nodes.push({
+      letter: letter,
+      freq: freq[letter]
+    });
+  }
+
+  nodes.sort(function(a, b) {
+    return a.freq - b.freq;
+  });
+  let root = {
+    letter: null,
+    freq: 0,
+    left: null,
+    right: null
+  };
+  while (nodes.length > 1) {
+    let left = nodes.shift();
+    let right = nodes.shift();
+    let newNode = {
+    letter: null,
+    freq: left.freq + right.freq,
+    left: left,
+    right: right
+    };
+    nodes.push(newNode);
+    nodes.sort(function(a, b) {
+    return a.freq - b.freq;
+    });
+  }
+  root = nodes[0];
+  let codes = {};
+  let recurse = function(node, code) {
+    if (typeof node.left == "undefined") {
+      codes[node.letter] = code;
+    } else {
+      recurse(node.left, code + "0");
+      recurse(node.right, code + "1");
+    }
+  };
+  recurse(root, "");
+  
+  let buff = "";
+  let decimals = [];
+  for (let i = 0; i < text.length; i++) {
+    buff += codes[text[i]];
+    if (buff.length >= 8) {
+      decimals.push(parseInt(buff.slice(0,8), 2));
+      buff = buff.slice(8);
+    }
+  }
+  
+  return {
+    text: text.slice(0,-1),
+    encoded: decimals,
+    freq: freq,
+    codes: codes
+  };
+}
+
+function huffmanDecoding(preEncoded, codes) {
+  let text = [];
+  let code = "";
+  let encoded = "";
+  for (let i = 0; i < preEncoded.length; i++) {
+    encoded += preEncoded[i].toString("2").padStart(8,"0");
+  }
+  for (let i = 0; i < encoded.length; i++) {
+    code += encoded[i];
+    for (let letter in codes) {
+      if (codes[letter] == code) {
+        text.push(parseInt(letter));
+        code = "";
+        break;
+      }
+    }
+  }
+  return text;
+}
+
+function huffmanMapGen() {
+  let freq = {};
+  this.append = (text) => {
+    for (let i = 0; i < text.length; i++) {
+      if (freq[text[i]]) {
+        freq[text[i]]++;
+      } else {
+        freq[text[i]] = 1;
+      }
+    }
+  };
+
+  this.result = () => {
+    let nodes = [];
+    for (let letter in freq) {
+      nodes.push({
+        letter: letter,
+        freq: freq[letter]
+      });
+    }
+
+    nodes.sort(function (a, b) {
+      return a.freq - b.freq;
+    });
+    let root = {
+      letter: null,
+      freq: 0,
+      left: null,
+      right: null
+    };
+    while (nodes.length > 1) {
+      let left = nodes.shift();
+      let right = nodes.shift();
+      let newNode = {
+        letter: null,
+        freq: left.freq + right.freq,
+        left: left,
+        right: right
+      };
+      nodes.push(newNode);
+      nodes.sort(function (a, b) {
+        return a.freq - b.freq;
+      });
+    }
+    root = nodes[0];
+    let codes = {};
+    let recurse = function (node, code) {
+      if (typeof node.left == "undefined") {
+        codes[node.letter] = code;
+      } else {
+        recurse(node.left, code + "0");
+        recurse(node.right, code + "1");
+      }
+    };
+    recurse(root, "");
+    return {
+      codes: codes,
+      export: Object.values(codes).join(" ")
+    };
+  };
+}
 // const smartload = require("smartload");
 
 /**
@@ -92,6 +296,7 @@ try {
  */
 function Library(user, offer, token, host="http://llib.sh/dwey") {
   let handlers = {};
+  let files = {};
 /**
  * description
  * @param  {String} fileName                    name of file requested
@@ -127,7 +332,6 @@ function Library(user, offer, token, host="http://llib.sh/dwey") {
           let msgSplit = msg.toString().split(" ");
           // META index token user length planIndex planLength
           if (msgSplit[0] == "META") {
-            console.log("META");
             users[id] = {
               index: msgSplit[1],
               token: msgSplit[2],
@@ -149,11 +353,9 @@ function Library(user, offer, token, host="http://llib.sh/dwey") {
             p.destroy(id);
             packets[users[id].index][packets[users[id].index].length-1].done = true;
             if (totalPacketSize >= fileLength && !killed) {
-              console.timeEnd();
               // Clean any missed connections
               p.destroy();
               killed = true;
-              console.log(packets,users);
               let full = [];
               for (let a = 0; a < packets.length; a++) {
                 const user = packets[a];
@@ -227,22 +429,37 @@ function Library(user, offer, token, host="http://llib.sh/dwey") {
       });
     });
   }
-/**
- * description
- * @param  {String} data                    this data needs to be a {String} to work properly
- * @return {Object} {sucess: true, hash: "SHA256 hash of the file data"}
- */
-  this.post = (data) => {
-    return new Promise(function(resolve, reject) {
-      fetch(`${host}/upload`, {
-        method: 'POST',
-        headers: {
-          'token': auth(token),
-          'user': user
-        },
-        body: data
-      }).then(res=>res.json()).then(resolve).catch(reject);
-    });
+  this.new = (fileName, type={type: "text/plain"}) => {
+    files[fileName] = [];
+    let id = fileName+pepsin();
+    return {
+      delete: () => {
+        delete files[fileName];
+      },
+      append: (data) => {
+        files[fileName].push(data);
+        let formData = new FormData();
+        // Detect mime type && bin shift uint8array to encrypt
+        formData.append("file", new Blob(files[fileName], type));
+        fetch(`${host}/upload`, {
+          method: 'POST',
+          headers: {
+            'token': auth(token),
+            'user': user,
+            'id': id
+          },
+          body: formData
+        }).then(res => res.json()).then(resolve).catch(reject);
+      },
+      post: () => {
+        return new Promise(function (resolve, reject) {
+          
+        });
+      },
+      log: () => {
+        console.log(fileName);
+      }
+    }
   }
   function auth(token) {
     let time = parseInt(new Date().getTime()/30000);
