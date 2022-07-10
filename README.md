@@ -87,7 +87,7 @@ _fileData_: Any string that contains data you want to store on the network
 Librarian is the CLI node, below describes the usage of it.
 ##### Usage
 ```
-librarian --f <files> -t <token> -a <user> -o <offer>
+librarian -f <files> -t <token> -u <user> -o <offer>
 ```
 ###### Display settings
 _-q_, --quiet: **[Boolean]** Quiet mode
